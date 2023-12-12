@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Main</title>
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+  </head>
+
+  <body>
+    <main id="main-holder">
+      <a href="/logout" id="logout">Logout</a>
+    </main>
+  </body>
+
+  <style>
+    html {
+      height: 100%;
+    }
+
+    body {
+      height: 100%;
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      display: grid;
+      justify-items: center;
+      align-items: center;
+      background-color: #3a3a3a;
+    }
+
+    #logout {
+      opacity: 0;
+    }
+
+    #main-holder {
+      width: 50%;
+      height: 70%;
+      display: grid;
+      justify-items: center;
+      align-items: center;
+      background-color: white;
+      border-radius: 7px;
+      box-shadow: 0px 0px 5px 2px black;
+    }
+  </style>
+
+  <script type="module">
+    import { jwtDecode } from 'https://cdn.jsdelivr.net/npm/jwt-decode@4.0.0/+esm';
+    const session = sessionStorage.getItem('session');
+
+    let token;
+    let refresh;
+    let info = {};
+
+    async function refreshJWT(refreshToken) {
+      axios({
+        method: 'post',
+        url: '/api/refresh',
+        data: {
+          refreshToken,
+        },
+      })
+        .then((response) => {
+          sessionStorage.setItem('session', JSON.stringify(response.data));
+          location.reload();
+        })
+        .catch((response) => {
+          loginErrorMsg.style.opacity = 1;
+        });
+    }
+
+    try {
+      token = JSON.parse(session).token;
+      refresh = JSON.parse(session).refresh_token;
+      const { iat, exp } = jwtDecode(token);
+      info = {
+        iat,
+        exp,
+      };
+      console.log(info);
+    } catch (e) {
+      console.log(e);
+    }
+
+    if (info.exp * 1000 < Date.now()) {
+      refreshJWT(refresh);
+      console.log(info.exp * 1000 < Date.now());
+    } else if (token) {
+      axios
+        .get('/getData', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        .then((response) => {
+          const { payload } = response.data;
+
+          if (payload) {
+            const mainHolder = document.getElementById('main-holder');
+            mainHolder.append(`Hello`);
+            mainHolder.append(`Scope: ${payload.scope}`);
+            mainHolder.append(`Grant type: ${payload.gty}`);
+            logoutLink.style.opacity = 1;
+          }
+        })
+        .catch(async (error) => {
+          if (error.response?.status === 401) {
+            refreshJWT(refresh);
+            console.log(error);
+          } else {
+            console.log(error);
+          }
+        });
+    } else {
+      location.replace('/login');
+    }
+    const logoutLink = document.getElementById('logout');
+
+    logoutLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      sessionStorage.removeItem('session');
+      location.replace('/login');
+    });
+  </script>
+</html>
