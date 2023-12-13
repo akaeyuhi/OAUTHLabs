@@ -235,7 +235,7 @@ app.post('/api/refresh', async (req, res) => {
   try {
     const { access_token, expires_in, refresh_token } =
       await authService.refresh(refreshToken);
-    sessions.set(access_token, { username: login });
+    sessions.set(access_token, { username });
     res.send({ token: access_token, expires_in, refresh_token });
   } catch (e) {
     console.log(e);
